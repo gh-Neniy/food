@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+
+from curl_cffi import requests
+from Details.Cookie import *
+from Details.Products import GetCategories, GetProducts
+from Details.Database import UpdateData
+from Details.AI import Analyse
+
+import sys
+import os
+
+def RequestCookie(cookie_path: str) -> dict:
+  print('Enter the cookie:')
+  cookie_str = input()
+  SaveCookie(cookie_path, cookie_str)
+  return ParseCookie(cookie_str)
+
+
+DEFAULT_PROMT = 'Выбери топ-20 лучших товаров с хорошим невредным составом и приемлемой ценой для питания на ежедневной основе при высоких умственных нагрузках.'
+
+def main():
+  cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Details', 'Cookie')
+
+  if len(sys.argv) > 2:
+    print("Invalid argument count.")
+    sys.exit(-1)
+
+  if len(sys.argv) == 2:
+    if sys.argv[1] not in ('--update-cookie', '-u'):
+      print("Unknown flag.")
+      sys.exit(-1)
+    cookies = RequestCookie()
+  elif os.path.getsize(cookie_path) == 0:
+    cookies = RequestCookie()
+  else:
+    cookies = ReadCookie(cookie_path)
+
+  with requests.Session(cookies=cookies, impersonate='chrome136') as session:
+    products_id = GetProducts(session, GetCategories(session))
+    print('Received', len(products_id), 'products')
+    collected = UpdateData(session, products_id)
+    print(len(collected))
+
+    print('Custom promt:')
+    promt = input()
+    if len(promt) == 0:
+      print('Default promt will be used')
+      promt = DEFAULT_PROMT
+
+    print(Analyse(promt, collected))
+    
+  
+if __name__ == '__main__':
+  main()

@@ -38,7 +38,7 @@ def Price(product: dict) -> str:
   return product['prices'][1]['value']
 
 
-def CollectData(session: requests.Session, products_id: list[str]) -> list[tuple]:
+def UpdateData(session: requests.Session, products_id: list[str]) -> list[tuple]:
   with sql.connect(host='localhost', user='food', password='yandextop') as database:
     with database.cursor() as cursor:
       cursor.execute(SELECT_ID_UPDATE)
@@ -72,4 +72,4 @@ def CollectData(session: requests.Session, products_id: list[str]) -> list[tuple
           database.commit()
 
       cursor.execute(SELECT_ESSENTIALS)
-      return [(row[1], row[2], row[3]) for row in cursor.fetchall() if str(row[0]) in products_id]
+      return [(row[1], row[2], float(row[3])) for row in cursor.fetchall() if str(row[0]) in products_id]
