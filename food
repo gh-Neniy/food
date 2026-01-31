@@ -29,9 +29,9 @@ def main():
     if sys.argv[1] not in ('--update-cookie', '-u'):
       print("Unknown flag.")
       sys.exit(-1)
-    cookies = RequestCookie()
+    cookies = RequestCookie(cookie_path)
   elif os.path.getsize(cookie_path) == 0:
-    cookies = RequestCookie()
+    cookies = RequestCookie(cookie_path)
   else:
     cookies = ReadCookie(cookie_path)
 
