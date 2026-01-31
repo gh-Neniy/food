@@ -13,7 +13,7 @@ def SendPart(client: genai.Client, part_number: int, content: str, collected: li
 
 API_KEY = ''
 INSTRUCTION = 'Ответ отправь на последней части в виде списка названий и только в виде списка названий'
-PARTITION = 1800
+PARTITION = 1700
 
 def Analyse(promt: str, collected: list[tuple]) -> str:
   os.environ['all_proxy'] = 'socks5://127.0.0.1:12334/'

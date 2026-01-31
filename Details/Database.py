@@ -8,11 +8,12 @@ import time
 import re
 
 WEEK_SEC = 604800
+MAX_WORDS_CNT = 7
 
 def Name(product: dict) -> str:
   words = product['name'].split() # leaves only clear words list, without escape sequences
-  result_words = words[:3]
-  if len(words) <= 3:
+  result_words = words[:MAX_WORDS_CNT]
+  if len(words) <= MAX_WORDS_CNT:
     return ' '.join(result_words)
   
   if result_words[-1] in ['с', 'в', 'из', 'и', 'от', 'со'] or result_words[-1].isdigit():
@@ -34,8 +35,14 @@ def Composition(product: dict) -> str:
 
 def Price(product: dict) -> str:
   if len(product['prices']) == 1 or product['prices'][0]['placement_type'] == 'promotional_primary':
-    return product['prices'][0]['value']
-  return product['prices'][1]['value']
+    initial_price = product['prices'][0]['value']
+  else:
+    initial_price = product['prices'][1]['value']
+
+  if ''.join(product['property_clarification'].split()) == 'Ценаза100г':
+    return str(float(product['min_weight']) * 10 * float(initial_price))
+  
+  return initial_price
 
 
 def UpdateData(session: requests.Session, products_id: list[str]) -> list[tuple]:

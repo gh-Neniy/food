@@ -39,9 +39,8 @@ def main():
     products_id = GetProducts(session, GetCategories(session))
     print('Received', len(products_id), 'products')
     collected = UpdateData(session, products_id)
-    print(len(collected))
 
-    print('Custom promt:')
+    print('\nCustom promt:')
     promt = input()
     if len(promt) == 0:
       print('Default promt will be used')
