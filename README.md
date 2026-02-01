@@ -37,7 +37,7 @@ exec bash
 source .venv/bin/activate
 ```
 Также для работы программы нужны:
-- API-ключ в **API_KEY** в `Details/AI.py` для Gemini API
+- API-ключ в **API_KEY** в `Details/AI.py` для Gemini API (а также VPN)
 - Cookie сайта 5ka.ru от браузера на основе chrome, которой хотя бы 3 дня (для перезаписи cookie можно использовать флаг -u или --update-cookie)
 
 ## Архитектура
