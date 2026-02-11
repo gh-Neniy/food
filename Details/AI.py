@@ -1,14 +1,26 @@
 from google import genai
+from google.genai import errors
 
 import math
 import time
 import os
 
 def SendPart(client: genai.Client, content: str, collected: list[tuple]) -> str:
-  return client.models.generate_content(
-      model="gemini-3-flash-preview",
-      contents=f'{content}\n{str(collected)}'
-  ).text
+  count = 0
+  while True:
+    try: # because of often errors on server side, which was annoying
+      response = client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=f'{content}\n{str(collected)}'
+      )
+      break
+    except errors.ServerError:
+      print(f'Gemini API error on server with code {response.code_execution_result}, retry')
+      count += 1
+      if count == 3:
+        raise
+
+  return response.text
 
 
 API_KEY = ''
@@ -37,5 +49,7 @@ def Analyse(promt: str, collected: list[tuple]) -> str:
   candidates = [candidate for candidate in collected if candidate[0] in chosen_ids]
   final_content = f'{promt}\n{FINAL_INSTRUCTION}'
 
+  print('Waiting 60 seconds...')
+  time.sleep(60)
   print(f'Analysing {parts_cnt} results')
   return SendPart(client, final_content, candidates)
