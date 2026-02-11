@@ -31,7 +31,7 @@ def SendRequest(session: requests.Session, query: str) -> dict:
   return response.json()
 
 
-TARGET_CATEGORIES = [
+HEALTHY_CATEGORIES = [
   'Готовая еда',
   'Овощи, фрукты, орехи',
   'Молочная продукция и яйцо',
@@ -44,19 +44,30 @@ TARGET_CATEGORIES = [
   'Здоровый выбор'
 ]
 
-def GetCategories(session: requests.Session) -> list[dict]:
+ADDITIONAL_CATEGORIES = [
+  'Сладости',
+  'Снеки и чипсы'
+]
+
+def GetCategories(session: requests.Session, healthy: bool) -> list[dict]:
   categories = SendRequest(session, API + CATALOG)
-  return [category for category in categories if category['name'] in TARGET_CATEGORIES]
+  result = [category for category in categories if category['name'] in HEALTHY_CATEGORIES]
+  
+  if not healthy:
+    result += [category for category in categories if category['name'] in ADDITIONAL_CATEGORIES]
+
+  print('Got', len(result), 'categories')
+  return result
 
 
-def ProductsRequest(session: requests.Session, category: dict, offset: str = '0'):
+def ProductsRequest(session: requests.Session, category: dict, offset: str = '0') -> list[dict]:
   products = SendRequest(session, ProductsQuery(category['id'], offset))
   return products['products']
 
 
-# API restriction: offset + limit <= 1000
-def GetProducts(session: requests.Session, categories: list[dict]) -> list[str]:
-  result = []
+# API restriction: limit <= 499, offset + limit <= 1000
+def GetProducts(session: requests.Session, categories: list[dict]) -> dict[dict]:
+  result = {}
   for category in categories:
     time.sleep(Delay())
     products = ProductsRequest(session, category)
@@ -65,14 +76,16 @@ def GetProducts(session: requests.Session, categories: list[dict]) -> list[str]:
       products += ProductsRequest(session, category, '499')
 
     print('Got', len(products), 'on category', category['name'])
-    result += [str(product['plu']) for product in products]
 
-  return list(set(result))
+    for product in products:
+      result[product['plu']] = product
+
+  return result
 
 
 PRODUCT1 = 'catalog/v2/stores/5076/products/'
 PRODUCT2 = '?mode=delivery&include_restrict=true'
 
-def GetProduct(session: requests.Session, product_id: str) -> dict:
-  query = API + PRODUCT1 + product_id + PRODUCT2
+def GetProduct(session: requests.Session, product_id: int) -> dict:
+  query = API + PRODUCT1 + str(product_id) + PRODUCT2
   return SendRequest(session, query)

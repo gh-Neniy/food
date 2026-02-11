@@ -1,14 +1,17 @@
 from curl_cffi import requests
 from Details.Products import GetProduct
-from Details.SQLCode import SELECT_ID_UPDATE, SELECT_ESSENTIALS, INSERT
+from Details.SQLCode import SELECT_ID_INGREDIENTS, INSERT
 from Details.Delay import Delay
 
 import mysql.connector as sql
 import time
 import re
 
-WEEK_SEC = 604800
 MAX_WORDS_CNT = 7
+
+def Id(product: dict) -> int:
+  return product['plu']
+
 
 def Name(product: dict) -> str:
   words = product['name'].split() # leaves only clear words list, without escape sequences
@@ -23,53 +26,63 @@ def Name(product: dict) -> str:
   return ' '.join(result_words)
 
 
-def Composition(product: dict) -> str:
-  composition = product['ingredients']
-  if composition == None:
-    return ''
+def Price(product: dict) -> float:
+  initial_price = product['prices']['regular']
+  if product['prices']['discount']:
+    initial_price = product['prices']['discount']
+
+  if ''.join(product['property_clarification'].split()) == 'Ценаза100г':
+    return float(product['min_weight']) * 10 * float(initial_price)
   
-  sentences = re.sub(r'(\d),\s+(\d)', r'\1,\2', composition).split('. ')
-  filtered = [sentence for sentence in sentences if 'предприят' not in sentence.lower()]
+  return float(initial_price)
+
+
+def Ingredients(product: dict) -> str:
+  ingredients = product['ingredients']
+  if ingredients == None:
+    return 'Нет информации'
+  
+  if all(pattern not in ingredients for pattern in ('.\n\n', '\n\n', '.\n', '. ')): # can not separate sentences
+    return ingredients
+  
+  # reduce token amount by deleting unnecessary sentences
+  ingredients = ingredients.replace('.\n\n', '. ').replace('.\n', '. ').replace('\n\n', '. ')
+  sentences = re.sub(r'(\d),\s+(\d)', r'\1,\2', ingredients).split('. ')
+  filtered = [sentence for sentence in sentences if all(pattern not in sentence.lower() for pattern in ('предприят', 'может содерж', 'аллергенов'))]
   return '. '.join(filtered)
 
 
-def Price(product: dict) -> str:
-  if len(product['prices']) == 1 or product['prices'][0]['placement_type'] == 'promotional_primary':
-    initial_price = product['prices'][0]['value']
-  else:
-    initial_price = product['prices'][1]['value']
-
-  if ''.join(product['property_clarification'].split()) == 'Ценаза100г':
-    return str(float(product['min_weight']) * 10 * float(initial_price))
-  
-  return initial_price
-
-
-def UpdateData(session: requests.Session, products_id: list[str]) -> list[tuple]:
+def UpdateData(session: requests.Session, products: dict[dict]) -> list[tuple]:
   with sql.connect(host='localhost', user='food', password='yandextop') as database:
     with database.cursor() as cursor:
-      cursor.execute(SELECT_ID_UPDATE)
-      id_update = {str(row[0]) : row[1] for row in cursor.fetchall()}
+      cursor.execute(SELECT_ID_INGREDIENTS)
+      id_ingredients = {row[0] : row[1] for row in cursor.fetchall()}
 
+      result = []
       to_update = []
-      for id in products_id:
-        if id not in id_update or id_update[id].timestamp() + WEEK_SEC < time.time():
+      for id in products.keys():
+        if id not in id_ingredients:
           to_update.append(id)
+        else:
+          result.append((id, Name(products[id]), id_ingredients[id], Price(products[id])))
 
       if len(to_update) > 0:
         print(len(to_update), 'products will be updated...')
 
         counter = 0
         for i in range(len(to_update)):
+          id = to_update[i]
           time.sleep(Delay())
-          product = GetProduct(session, to_update[i])
-          if len(product['prices']) == 0: # That happens when product is not available (has been sold during updating)
-            print(f"{i + 1}/{len(to_update)} Sold out")
+          product = GetProduct(session, id)
+          if not product['prices']: # That happens when product is not available (has been sold during updating)
+            print(f"{i + 1}/{len(to_update)} Sold out ({id})")
             continue
 
-          product_name = Name(product)
-          cursor.execute(INSERT, (to_update[i], product_name, Composition(product), Price(product)))
-          print(f"{i + 1}/{len(to_update)}", 'Updated product with name', f"\"{product_name}\"")
+          name = Name(products[id])
+          ingredients = Ingredients(product)
+          cursor.execute(INSERT, (id, ingredients))
+          result.append((name, ingredients, Price(products[id])))
+          print(f"{i + 1}/{len(to_update)}", 'Updated product with name', f"\"{name}\"")
           counter += 1
           if counter == 10:
             database.commit()
@@ -78,5 +91,4 @@ def UpdateData(session: requests.Session, products_id: list[str]) -> list[tuple]
         if counter > 0:
           database.commit()
 
-      cursor.execute(SELECT_ESSENTIALS)
-      return [(row[1], row[2], float(row[3])) for row in cursor.fetchall() if str(row[0]) in products_id]
+      return result

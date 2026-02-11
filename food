@@ -16,7 +16,7 @@ def RequestCookie(cookie_path: str) -> dict:
   return ParseCookie(cookie_str)
 
 
-DEFAULT_PROMT = 'Выбери топ-20 лучших товаров с хорошим невредным составом и приемлемой ценой для питания на ежедневной основе при высоких умственных нагрузках.'
+DEFAULT_PROMT = 'Топ-20 продуктов для ужина и полдника, полезных при высоких умственных нагрузках, желательно поменьше сахара и недорогих, которые не нужно готовить, не напитков'
 
 def main():
   cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Details', 'Cookie')
@@ -25,20 +25,25 @@ def main():
     print("Invalid argument count.")
     sys.exit(-1)
 
+  healthy = False
   if len(sys.argv) == 2:
-    if sys.argv[1] not in ('--update-cookie', '-u'):
+    if sys.argv[1] not in ('--update-cookie', '-u', '--healthy', '-h'):
       print("Unknown flag.")
       sys.exit(-1)
-    cookies = RequestCookie(cookie_path)
-  elif os.path.getsize(cookie_path) == 0:
+    if sys.argv[1] in ('--update-cookie', '-u'):
+      cookies = RequestCookie(cookie_path)
+    else:
+      healthy = True
+
+  if os.path.getsize(cookie_path) == 0:
     cookies = RequestCookie(cookie_path)
   else:
     cookies = ReadCookie(cookie_path)
 
   with requests.Session(cookies=cookies, impersonate='chrome136') as session:
-    products_id = GetProducts(session, GetCategories(session))
-    print('Received', len(products_id), 'products')
-    collected = UpdateData(session, products_id)
+    products = GetProducts(session, GetCategories(session, healthy))
+    print('Received', len(products), 'products')
+    collected = UpdateData(session, products)
 
     print('\nCustom promt:')
     promt = input()
