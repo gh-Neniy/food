@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+
+from curl_cffi import requests
+
+import sys
+import os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from Details.Cookie import ParseCookie
+from Details.Products import GetCategories, GetProducts
+from Details.Database import UpdateData
+from Details.AI import Analyse
+
+from dotenv import load_dotenv, set_key
+
+
+def Request(dotenv_path: str, var: str) -> str:
+  print(f'Enter the {var}:')
+  input_str = input()
+
+  if var == 'api key':
+    key = 'API_KEY'
+  elif var == 'cookie':
+    key = 'COOKIE'
+  else:
+    key = 'SHOP_ID'
+
+  set_key(dotenv_path, key, input_str)
+  
+  return input_str
+
+
+DEFAULT_PROMPT = 'Топ-20 продуктов, полезных при высоких умственных нагрузках, желательно недорогих, которые не нужно готовить, не напитков'
+
+def main():
+  dotenv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+  if not os.path.exists(dotenv_path):
+    with open(dotenv_path, 'w') as file:
+      file.write('API_KEY=\nCOOKIE=\nSHOP_ID=\n')
+
+  load_dotenv(dotenv_path=dotenv_path)
+
+  api_key = os.getenv("API_KEY")
+  cookie = os.getenv("COOKIE")
+  shop_id = os.getenv("SHOP_ID")
+
+  healthy = False
+  set_api_key = not api_key
+  set_cookie = not cookie
+  set_shop_id = not shop_id
+
+  for flag in sys.argv[1:]:
+    match flag:
+      case '--help':
+        print('-a\tRequests api key\n-c\tRequests cookie\n-h\tChoose healthy categories only\n-s\tRequests shop id')
+        sys.exit(0)
+      case '-a':
+        set_api_key = True
+      case '-c':
+        set_cookie = True
+      case '-h':
+        healthy = True
+      case '-s':
+        set_shop_id = True
+      case _:
+        print('Unknown flag')
+        sys.exit(1)
+
+  if set_api_key:
+    api_key = Request(dotenv_path, 'api key')
+
+  if set_cookie:
+    cookie = Request(dotenv_path, 'cookie')
+
+  if set_shop_id:
+    shop_id = Request(dotenv_path, 'shop id')
+
+  cookie = ParseCookie(cookie)
+
+  with requests.Session(cookies=cookie, impersonate='chrome136') as session:
+    products = GetProducts(session, shop_id, GetCategories(session, shop_id, healthy))
+    print('Received', len(products), 'products')
+    
+    collected = UpdateData(session, shop_id, products)
+
+    print('\nCustom prompt:')
+    prompt = input()
+    if len(prompt) == 0:
+      print('Default prompt will be used')
+      prompt = DEFAULT_PROMPT
+
+    print(Analyse(api_key, prompt, collected))
+    
+  
+if __name__ == '__main__':
+  main()

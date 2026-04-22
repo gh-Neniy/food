@@ -4,23 +4,25 @@ from Details.Delay import Delay
 import time
 import sys
 
-API = 'https://5d.5ka.ru/api/'
-CATALOG = 'catalog/v3/stores/5076/categories?mode=delivery&include_subcategories=1&include_restrict=true'
-PRODUCTS1 = 'catalog/v2/stores/5076/categories/'
-PRODUCTS2 = '/products?mode=delivery&include_restrict=true&limit=499&offset='
 
-def ProductsQuery(category: str, offset: str) -> str:
-  return API + PRODUCTS1 + category + PRODUCTS2 + offset
+def CategoriesRequest(shop_id: str):
+  return 'https://5d.5ka.ru/api/catalog/v3/stores/' + shop_id + '/categories?mode=delivery&include_subcategories=1&include_restrict=true'
 
 
-def SendRequest(session: requests.Session, query: str) -> dict:
-  response = session.get(query)
+def ProductsRequest(shop_id: str, category: str, offset: str) -> str:
+  return 'https://5d.5ka.ru/api/catalog/v2/stores/' + shop_id + '/categories/' + category + '/products?mode=delivery&include_restrict=true&limit=499&offset=' + offset
+
+
+def SendRequest(session: requests.Session, request: str) -> dict:
+  response = session.get(request)
 
   count = 0
+
   while 500 <= response.status_code <= 599 and count < 3:
     print(f"Error on server with code {response.status_code}, retry")
     time.sleep(Delay())
-    response = session.get(query)
+
+    response = session.get(request)
     count += 1
 
   if response.status_code != 200:
@@ -49,31 +51,31 @@ ADDITIONAL_CATEGORIES = [
   'Снеки и чипсы'
 ]
 
-def GetCategories(session: requests.Session, healthy: bool) -> list[dict]:
-  categories = SendRequest(session, API + CATALOG)
+
+def GetCategories(session: requests.Session, shop_id:str, healthy: bool) -> list[dict]:
+  categories = SendRequest(session, CategoriesRequest(shop_id))
   result = [category for category in categories if category['name'] in HEALTHY_CATEGORIES]
   
   if not healthy:
     result += [category for category in categories if category['name'] in ADDITIONAL_CATEGORIES]
 
   print('Got', len(result), 'categories')
+
   return result
 
 
-def ProductsRequest(session: requests.Session, category: dict, offset: str = '0') -> list[dict]:
-  products = SendRequest(session, ProductsQuery(category['id'], offset))
-  return products['products']
-
-
 # API restriction: limit <= 499, offset + limit <= 1000
-def GetProducts(session: requests.Session, categories: list[dict]) -> dict[dict]:
+def GetProducts(session: requests.Session, shop_id: str, categories: list[dict]) -> dict[dict]:
   result = {}
+
   for category in categories:
     time.sleep(Delay())
-    products = ProductsRequest(session, category)
+
+    products = SendRequest(session, ProductsRequest(shop_id, category['id'], '0'))['products']
+    
     if len(products) == 499:
       time.sleep(Delay())
-      products += ProductsRequest(session, category, '499')
+      products += SendRequest(session, ProductsRequest(shop_id, category['id'], '499'))['products']
 
     print('Got', len(products), 'on category', category['name'])
 
@@ -83,9 +85,9 @@ def GetProducts(session: requests.Session, categories: list[dict]) -> dict[dict]
   return result
 
 
-PRODUCT1 = 'catalog/v2/stores/5076/products/'
-PRODUCT2 = '?mode=delivery&include_restrict=true'
+def ProductRequest(shop_id: str, product_id: int):
+  return 'https://5d.5ka.ru/api/catalog/v2/stores/' + shop_id + '/products/' + str(product_id) + '?mode=delivery&include_restrict=true'
 
-def GetProduct(session: requests.Session, product_id: int) -> dict:
-  query = API + PRODUCT1 + str(product_id) + PRODUCT2
-  return SendRequest(session, query)
+
+def GetProduct(session: requests.Session, shop_id: str, product_id: int) -> dict:
+  return SendRequest(session, ProductRequest(shop_id, product_id))

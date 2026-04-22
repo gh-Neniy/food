@@ -1,4 +1,0 @@
-mysql-connector-python
-curl_cffi
-google-genai
-socksio

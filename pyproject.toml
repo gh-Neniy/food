@@ -1,0 +1,22 @@
+[project]
+name = "food"
+version = "1.0.0"
+description = "Program to choose products with Gemini"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "curl_cffi",
+  "google-genai",
+  "socksio"
+]
+
+[tool.ruff]
+line-length = 88
+extend-include = ["food"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

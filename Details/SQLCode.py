@@ -1,23 +1,17 @@
-CREATE_USER = """
-create user if not exists `food`@`localhost` identified by 'yandextop';
-grant all privileges on `food`.* to `food`@`localhost`;
-flush privileges;
-"""
+import os
+
+DATABASE_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'food.db')
 
 CREATE_DATABASE = """
-create schema if not exists `food` default character set utf8mb4 collate utf8mb4_unicode_ci;
-
-create table if not exists `food`.`products` (
-  `id` int not null primary key,
+create table if not exists `products` (
+  `id` integer primary key,
   `ingredients` text
 );
 """
 
-SELECT_ID_INGREDIENTS = 'select `id`, `ingredients` from `food`.`products`;'
+SELECT = 'select `id`, `ingredients` from `products`;'
 
 INSERT = """
-insert into `food`.`products` (`id`, `ingredients`)
-values(%s, %s)
-on duplicate key update
-`ingredients` = values(`ingredients`);
+insert or replace into `products` (`id`, `ingredients`)
+values (?, ?);
 """
