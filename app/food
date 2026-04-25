@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from curl_cffi import requests
+from curl_cffi import CurlOpt, requests
 
 import sys
 import os
@@ -78,7 +78,8 @@ def main():
 
   cookie = ParseCookie(cookie)
 
-  with requests.Session(cookies=cookie, impersonate='chrome136') as session:
+  with requests.Session(cookies=cookie, impersonate='chrome136',
+                        curl_options={CurlOpt.NOPROXY: '*'}) as session: # proxy is not used
     products = GetProducts(session, shop_id, GetCategories(session, shop_id, healthy))
     print('Received', len(products), 'products')
     
